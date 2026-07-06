@@ -1,6 +1,40 @@
 # NEWS
 
+## ZeBook 1.3.0
+
+### Testing
+
+* Established a complete `testthat` (edition 3) testing foundation with 275
+  passing tests across four test files, covering every core model domain in the
+  package.
+
+* `tests/testthat/test-pure-models.R` (65 tests): golden-output and invariant
+  tests for `carbonsoil`, `seedweight`, `exponential`, `verhulst`, `magarey`,
+  `population.age`, `carcass`, `weed`, and `lactation` models.
+
+* `tests/testthat/test-weather-models.R` (35 tests): structural, invariant, and
+  snapshot tests for `carrot.weevil`, `maize`, `watbal`, and `epirice` models,
+  using deterministic synthetic weather fixtures (no network access required).
+
+* `tests/testthat/test-statistical.R` (32 tests): analytical-value tests for
+  `goodness.of.fit`, `threshold.measures`, `AICf`, and `evaluation.criteria`,
+  including the MSE decomposition identity (bias² + SDSD + LCS = MSE).
+
+* `tests/testthat/test-sampling.R` (143 tests): structural, boundary, and
+  distributional tests for `param.runif`, `param.rtriangle`, and
+  `q.arg.fast.runif`, including a theoretical-mean check at N=5000.
+
+* `tests/testthat/helper-weather.R`: shared synthetic weather/parameter
+  factories used throughout the test suite.
+
+* Phase 1 regressions protected: `expect_silent(carrot.weevil.model(...))` and
+  `expect_message(magarey.define.param("unkown"), ...)` guard against
+  reintroduction of the print-statement bugs fixed in v1.2.1.
+
+---
+
 ## ZeBook 1.2.1
+
 
 ### Bug fixes
 
