@@ -139,7 +139,6 @@ maize.simule <- function(X, weather, sdate, ldate, all=FALSE){
     output_name = "B",
     all         = all)
 }
-################################################################################
 #' @title Wrapping function to run maize model on several site-years
 #' @description Wrapping function to run maize model on several site-years
 #' @param param : a vector of parameters
@@ -150,17 +149,20 @@ maize.simule <- function(X, weather, sdate, ldate, all=FALSE){
 #' @return a data.frame with simulation for all site-years, with the first column sy indicating the site-years
 #' @export
 maize.multisy <- function(param, list_site_year, sdate, ldate, weather_all=NA){
-  sim <- data.frame()
-  for (sy in list_site_year) {
+  n    <- length(list_site_year)
+  # Pre-allocate a list of the correct length; assign results by index.
+  # Avoids O(n^2) incremental rbind copying that grows the data.frame each step.
+  sims <- vector("list", n)
+  for (i in seq_len(n)) {
+    sy       <- list_site_year[i]
     sy_parts <- .parse_siteyear(sy)
-    weather  <- maize.weather(working.year=sy_parts["year"],
-                              working.site=sy_parts["site"],
-                              weather_all=weather_all)
+    weather  <- maize.weather(working.year = sy_parts["year"],
+                              working.site = sy_parts["site"],
+                              weather_all  = weather_all)
     result   <- maize.model2(param, weather, sdate, ldate)
-    result   <- cbind(sy, result)
-    sim      <- rbind(sim, result)
+    sims[[i]] <- cbind(sy, result)
   }
-  return(sim)
+  do.call(rbind, sims)
 }
 ################################################################################
 #' @title Wrapper function to run Maize model multiple times for multiple sets of parameter values and give Biomass at day240

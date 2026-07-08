@@ -1,6 +1,37 @@
 # NEWS
 
+## ZeBook 1.5.0
+
+### Performance
+
+* `maize.multisy()`: replaced O(n²) `rbind`-grow loop with pre-allocated list
+  and single `do.call(rbind, ...)`. Reduces wall time by **~38%** for 10
+  site-years; savings scale quadratically with the number of site-years.
+
+* `param.runif()`, `param.rtriangle()`: replaced `cbind`-grow-in-loop with
+  a single pre-allocated matrix filled column-by-column, eliminating O(N·p²)
+  intermediate data.frame copies. `param.rtriangle` shows **4× speedup** for
+  `N=2000, p=7`.
+
+* `q.arg.fast.runif()`: replaced `c(list, ...)` list-grow with a pre-allocated
+  `vector("list", p)` filled by index, eliminating O(p²) list copies.
+
+* `carcass.model()`: (a) fixed `rep(NA, 1, duration)` bug (wrong 3-arg form);
+  (b) cached `EMI/(CPM+EMI)` energy ratio computed once per step instead of
+  4 times; (c) cached all four `log()` growth terms computed once per step
+  instead of twice. Saves ~2920 redundant `log()` calls per 365-day run.
+
+* `carbonsoil.model()`: when `U` is a scalar, now converts it directly to a
+  plain `numeric` vector instead of constructing a 2-column `data.frame` per
+  call.
+
+* `lactation.define.param()`: adopted `.make_param_matrix()` helper,
+  consistent with Phase 3 consolidation.
+
+---
+
 ## ZeBook 1.4.0
+
 
 ### Internal refactoring
 
