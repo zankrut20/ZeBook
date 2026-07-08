@@ -1,6 +1,39 @@
 # NEWS
 
+## ZeBook 1.4.0
+
+### Internal refactoring
+
+* Introduced `R/utils_internal.r` containing four unexported helper functions
+  that consolidate duplicated patterns found across model files:
+
+  * `.filter_site_year()`: eliminates the 9-line site-and-year filtering
+    block previously duplicated in `maize.weather()`, `epirice.weather()`, and
+    `watbal.weather()` (27 lines removed across 3 files).
+
+  * `.make_param_matrix()`: eliminates the `row.names + as.matrix` two-liner
+    previously repeated in `maize.define.param()`, `epirice.define.param()`,
+    `watbal.define.param()`, and `magarey.define.param()` (8 lines removed
+    across 4 files).
+
+  * `.apply_simule()`: eliminates the `apply/cbind/as.matrix` pattern
+    previously repeated in `maize.simule()`, `maize.simule240()`,
+    `maize.simule_multisy240()`, `magarey.simule()`, and `weed.simule()`
+    (15 lines removed across 5 functions).
+
+  * `.parse_siteyear()`: eliminates the inline `strsplit(sy,"-")[[1]][1/2]`
+    repeated in `maize.multisy()` and `maize.multisy240()` (4 expressions
+    replaced across 2 functions).
+
+* No exported function signatures, return types, or return values were changed.
+
+* 31 new tests in `tests/testthat/test-utils-internal.R` verify all four
+  helpers directly via the `:::` operator.
+
+---
+
 ## ZeBook 1.3.0
+
 
 ### Testing
 

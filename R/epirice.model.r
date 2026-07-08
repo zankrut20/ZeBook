@@ -155,8 +155,8 @@ RcA=c(1,NA,NA),
 a=c(1,NA,NA),
 k=c(0.025,NA,NA),
 SenescType=c(1,NA,NA))
-row.names(param)<-c("nominal","binf","bsup")
-return(as.matrix(param))
+row.names(param) <- c("nominal", "binf", "bsup")
+return(.make_param_matrix(param))
 }
 ################################################################################
 #' @title Read weather data for Epirice (southern Asia weather)
@@ -167,20 +167,16 @@ return(as.matrix(param))
 #' @return data.frame with daily weather data for one or several site(s) and for one or several year(s)
 #' @export
 # Reading Weather data function
-epirice.weather=function(working.year=NA, working.site=NA,weather=NA)
+epirice.weather = function(working.year=NA, working.site=NA, weather=NA)
     {
-    #day month year R Tmax Tmin rain ETP
-    # idsite","GPSlatitude","GPSlongitude","WEYR","WEDAY","TMAX","TMIN","RAIN","RH2M"
-    # Tmax : maximum temperature (celsius)
-    # Tmin : minimum temperature (celsius)
-    
-    names(weather)[names(weather)=="WEYR"|names(weather)=="WEDAY"]= c("year","day")
-    # if argument working.year/working.site is specified, work on one particular year/site
-    if (!is.na(working.year)&!is.na(working.site)) {weather=weather[(weather$year==working.year)&(weather$idsite==working.site),] }
-    else{
-      if (!is.na(working.year)) {weather=weather[(weather$year==working.year),]}
-      if (!is.na(working.site)) {weather=weather[(weather$idsite==working.site),]}}
-    return (weather)
+    # idsite, GPSlatitude, GPSlongitude, WEYR, WEDAY, TMAX, TMIN, RAIN, RH2M
+    # Rename only the two time columns to the standard names used by the model
+    names(weather)[names(weather) == "WEYR"]  <- "year"
+    names(weather)[names(weather) == "WEDAY"] <- "day"
+    # delegate site/year subsetting to the shared internal helper
+    weather <- .filter_site_year(weather, working.year, working.site)
+    return(weather)
     }
+
 
 # End of file

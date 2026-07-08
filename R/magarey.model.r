@@ -74,9 +74,8 @@ Tmax = c(30, 27, 35)
 Wmin = c(10, 5, 17)
 Wmax = c(42, 18, 90)}
 message(paste("parameter values for species : ",species))
-param<-data.frame(Tmin,Topt,Tmax, Wmin, Wmax)
-row.names(param)<-c("nominal","binf","bsup")
-return(as.matrix(param))
+param <- data.frame(Tmin, Topt, Tmax, Wmin, Wmax)
+return(.make_param_matrix(param))
 }
 ################################################################################
 #' @title Wrapper function to run the Magarey model multiple times (for multiple sets of inputs)
@@ -87,10 +86,11 @@ return(as.matrix(param))
 #' @return a table with wetness duration (W) for each parameter vector
 #' @export
 #' @description Example magarey.simule(magarey.define.param(),15)
-magarey.simule <- function(X, T,  all=FALSE){
-Y <- apply(X,1,function(param) magarey.model2(T, param))
-if(all) Y = cbind(X,W = Y)
-return(as.matrix(Y))
+magarey.simule <- function(X, T, all=FALSE){
+  .apply_simule(X,
+    fn          = function(param) magarey.model2(T, param),
+    output_name = "W",
+    all         = all)
 }
 ################################################################################
 # End of file
