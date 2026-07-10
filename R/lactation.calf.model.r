@@ -1,5 +1,80 @@
 ################################ FUNCTIONS #####################################
 # Contribution of Juliette Adrian, Master2 internship, january-jully 2013
+## ── Internal simulation engine ─────────────────────────────────────────────────
+#
+# Consolidates the timestep logic for both lactation models.
+#
+# @keywords internal
+.lactation_engine <- function(cu, kdiv, kdl, kdh, km, ksl, kr, ks, ksm, mh, mm, p, mum,
+                              duration, dt, is_machine = FALSE,
+                              rc = NULL, rma = NULL, t1 = NULL, t2 = NULL, t3 = NULL,
+                              t4 = NULL, t5 = NULL, t6 = NULL, CSi = 520, Mi = 0.0) {
+  n_steps <- as.integer(duration / dt)
+  n_alloc <- n_steps + 2
+
+  H    <- rep(NA_real_, n_alloc)
+  CS   <- rep(NA_real_, n_alloc)
+  M    <- rep(NA_real_, n_alloc)
+  Mmoy <- rep(NA_real_, n_alloc)
+  RM   <- rep(NA_real_, n_alloc)
+
+  H[1]    <- 1.0
+  CS[1]   <- CSi
+  M[1]    <- Mi
+  Mmoy[1] <- 0.0
+
+  if (is_machine) {
+    RM[1] <- 0.0
+  }
+
+  i <- 1
+  for (t in seq(0, duration, by = dt)) {
+    if (is_machine) {
+      t_mod <- t %% 1
+      if ((t_mod > t1 && t_mod < t2) || (t_mod > t3 && t_mod < t4) || (t_mod > t5 && t_mod < t6)) {
+        mach <- rma
+      } else {
+        mach <- 0
+      }
+    } else {
+      mach <- rc
+    }
+
+    dH    <- - kdh * H[i] * dt
+    dCS   <- (mum * (H[i] / (kdiv + H[i])) * cu - (ks + ksm * ((Mmoy[i] / mh)^p / (1 + (Mmoy[i] / mh)^p))) * CS[i]) * dt
+    dM    <- (km * CS[i] * ((mm - M[i]) / (mm - M[i] + ksl)) - (M[i] / (kdl + M[i])) * mach) * dt
+    dMmoy <- kr * (M[i] - Mmoy[i]) * dt
+
+    H[i + 1]    <- H[i] + dH
+    CS[i + 1]   <- CS[i] + dCS
+    M[i + 1]    <- M[i] + dM
+    Mmoy[i + 1] <- Mmoy[i] + dMmoy
+
+    if (is_machine) {
+      RM[i + 1] <- (M[i + 1] / (kdl + M[i + 1])) * mach
+    } else {
+      RM[i] <- (M[i] / (kdl + M[i])) * mach
+    }
+
+    i <- i + 1
+  }
+
+  day  <- seq(dt, duration, by = dt)
+  week <- day %/% 7
+
+  results1 <- data.frame(
+    M    = M[1:n_steps],
+    Mmoy = Mmoy[1:n_steps],
+    CS   = CS[1:n_steps],
+    RM   = RM[1:n_steps],
+    day  = day,
+    week = week
+  )
+
+  result <- by(results1[, c("week", "M", "Mmoy", "CS", "RM")], results1$week, function(x) apply(x, 2, mean))
+  matrix(unlist(result), ncol = 5, byrow = TRUE, dimnames = list(NULL, c("week", "M", "Mmoy", "CS", "RM")))
+}
+
 #' @title The Lactation model
 #' @description \strong{Model description.}
 #' This model is a model of lactating mammary glands of cattle described by Heather et al. (1983). This model was then inspired more complex models based on these principles.
@@ -26,62 +101,9 @@
 #' @return data.frame with CS, M, Mmoy, RM, day, week
 #' @examples lactation.calf.model2(lactation.define.param()["nominal",],300,0.1)
 #' @export
-lactation.calf.model <- function(cu,kdiv,kdl,kdh,km,ksl,kr,ks,ksm,mh,mm,p,mum,rc,duration,dt)
-{
- # Initialize variables
- # 5 states variables, as 5 vectors initialized to NA
-    # H : Hormone effector of cell division (kg/m3)
-H=rep(NA,(duration-1)/dt)
-    # CS : Number of secretory cells
-CS=rep(NA,(duration-1)/dt)
-    # M : Quantity of milk in animal (kg)
-M=rep(NA,(duration-1)/dt)
-    # Mmoy : Time average of M (kg)
-Mmoy=rep(NA,(duration-1)/dt)
-    # RM : Rate of removal of milk
-RM=rep(NA,(duration-1)/dt)
-
- # Initialization of state variables
-H[1]=1.0
-CS[1]=520
-M[1]=0.0
-Mmoy[1]=0.0
-
-i=1
- # Simulation loop
-for (t in seq(0, duration, by = dt))
-  {
- # Calculate rates of change of state variables (dH,dCS,dM,dMmoy)
-    dH = - kdh * H[i] * dt
-    dCS = (mum * (H[i]/(kdiv+H[i]))*cu - (ks + ksm*((Mmoy[i]/mh)^p/(1+(Mmoy[i]/mh)^p)))*CS[i] ) * dt
-    dM = (km * CS[i] * ((mm-M[i])/(mm-M[i]+ksl))-(M[i]/(kdl+M[i]))*rc	) * dt
-    dMmoy = kr*(M[i]-Mmoy[i]) * dt
-
- # Uptade state variables
-    H[i+1]= H[i] +dH
-    CS[i+1]= CS[i] + dCS
-    M[i+1]= M[i] + dM
-    Mmoy[i+1]= Mmoy[i] + dMmoy
-
-  # removal of milk
-    RM[i]=(M[i]/(kdl+M[i]))*rc
-
-  i=i+1
-  }
-  # End simulation loop
-  # conversion day to week
-   day=seq(dt,duration,by=dt)
-   week=day%/%7
-
-results1=data.frame(M=M[1:(duration/dt)],Mmoy=Mmoy[1:(duration/dt)],CS=CS[1:(duration/dt)],RM=RM[1:(duration/dt)],day=day,week=week)
-# mean by week
-#result = by(,results1$week, mean)
-result = by(results1[,c("week","M","Mmoy","CS","RM")],results1$week,function(x) apply(x,2,mean))
-results2 = matrix(unlist(result),ncol=5, byrow=TRUE,dimnames=list(NULL, c("week","M","Mmoy","CS","RM")) )
-return(results2)
-
-#results=data.frame(CS=CS[1:(duration/dt)],M=M[1:(duration/dt)],Mmoy=Mmoy[1:(duration/dt)],RM=RM[1:(duration/dt)],day=seq(0.1,duration,by=dt),week=seq(0.1/7,duration/7,by=dt/7))
-#return(results)
+lactation.calf.model <- function(cu, kdiv, kdl, kdh, km, ksl, kr, ks, ksm, mh, mm, p, mum, rc, duration, dt) {
+  .lactation_engine(cu, kdiv, kdl, kdh, km, ksl, kr, ks, ksm, mh, mm, p, mum,
+                    duration, dt, is_machine = FALSE, rc = rc, CSi = 520, Mi = 0.0)
 }
 ################################################################################
 #' @title The Lactation model for use with lactation.calf.simule
@@ -93,8 +115,11 @@ return(results2)
 #' @examples sim=lactation.calf.model2(lactation.define.param()["nominal",],6+2*7, 0.1)
 #' @export
 lactation.calf.model2 <- function(param,duration,dt){
- # use lactation.calf.model function to run the model
-  return(lactation.calf.model(param["cu"],param["kdiv"],param["kdl"],param["kdh"],param["km"],param["ksl"],param["kr"],param["ks"],param["ksm"],param["mh"],param["mm"],param["p"],param["mum"],param["rc"],duration,dt))
+  if ("rc" %in% names(param)) {
+    return(lactation.calf.model(param["cu"],param["kdiv"],param["kdl"],param["kdh"],param["km"],param["ksl"],param["kr"],param["ks"],param["ksm"],param["mh"],param["mm"],param["p"],param["mum"],param["rc"],duration,dt))
+  } else {
+    .lactation_engine(param["cu"],param["kdiv"],param["kdl"],param["kdh"],param["km"],param["ksl"],param["kr"],param["ks"],param["ksm"],param["mh"],param["mm"],param["p"],param["mum"],duration,dt,is_machine=TRUE,rma=param["rma"],t1=param["t1"],t2=param["t2"],t3=param["t3"],t4=param["t4"],t5=param["t5"],t6=param["t6"])
+  }
 }
 ################################################################################
 #' @title Wrapper function to run the Lactation model for multiple sets of parameter values
@@ -148,18 +173,20 @@ mm=c(30, NA, NA)
 p=c(10, NA, NA)
 #
 mum=c(1, NA, NA)
-#for calf
-#rc : parameter of milk m (t) function
-rc=c(40, NA, NA)
-#for machine
-#rma : parameter of milk m (t) function (Unit ?)
-rma=c(NA, NA, NA)
-
-CSi=c(NA, NA, NA)
-Mi=c(NA, NA, NA)
-if (type=="calf"){param <- data.frame(cu,kdiv,kdl,kdh,km,ksl,kr,ks,ksm,mh,mm,p,mum,rc)}
-else {if (type=="machine") {param <- data.frame("TODO")}}
-return(.make_param_matrix(param))
+  if (type == "calf") {
+    rc=c(40, NA, NA)
+    param <- data.frame(cu,kdiv,kdl,kdh,km,ksl,kr,ks,ksm,mh,mm,p,mum,rc)
+  } else if (type == "machine") {
+    rma=c(80, NA, NA)
+    t1=c(0.25, NA, NA)
+    t2=c(0.30, NA, NA)
+    t3=c(0.75, NA, NA)
+    t4=c(0.80, NA, NA)
+    t5=c(0, NA, NA)
+    t6=c(0, NA, NA)
+    param <- data.frame(cu,kdiv,kdl,kdh,km,ksl,kr,ks,ksm,mh,mm,p,mum,rma,t1,t2,t3,t4,t5,t6)
+  }
+  return(.make_param_matrix(param))
 
 }
 # end of file
