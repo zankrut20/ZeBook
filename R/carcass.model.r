@@ -27,77 +27,98 @@
 #' @param duration duration of simulation
 #' @return data.frame with ProtC,LipC,ProtNC,LipNC,PV
 #' @export
+# ── Internal simulation engine ─────────────────────────────────────────────────
+#
+# Consolidates the timestep logic for both carcass models.
+#
+# @keywords internal
+.carcass_engine <- function(protcmax, protncmax, alphac, alphanc, gammac, gammanc,
+                            lip0, lipc1, lipnc1, beta, delta, b0c, b1c, b0nc, b1nc, c0, c1,
+                            duration, init_ProtC, init_LipC, init_ProtNC, init_LipNC,
+                            cem = NULL, k = NULL, amW = NULL, energie = NULL) {
+  # Pre-allocate state vectors
+  ProtC  <- rep(NA_real_, duration)
+  LipC   <- rep(NA_real_, duration)
+  ProtNC <- rep(NA_real_, duration)
+  LipNC  <- rep(NA_real_, duration)
+  PV     <- rep(NA_real_, duration)
+
+  # Initial conditions
+  ProtC[1]  <- init_ProtC
+  LipC[1]   <- init_LipC
+  ProtNC[1] <- init_ProtNC
+  LipNC[1]  <- init_LipNC
+
+  has_energie <- !is.null(energie)
+
+  # Simulation loop
+  for (t in seq_len(duration)) {
+    # Body-weight sub-model
+    MDC     <- b0c  * ProtC[t]^b1c
+    PoidsC  <- LipC[t]  + MDC
+    MDNC    <- b0nc * ProtNC[t]^b1nc
+    PoidsNC <- LipNC[t] + MDNC
+
+    PVV   <- PoidsC + PoidsNC
+    PV[t] <- c0 * PVV^c1
+
+    # Energy calculations
+    if (has_energie) {
+      EMI <- energie$y[t]
+      CPM <- amW * PV[t]^0.75
+    } else {
+      EMI <- cem * (0.0157 * (PV[t]^0.9) + 3.3161)
+      CPM <- k * PV[t]^0.75
+    }
+
+    # Cache energy-availability ratio
+    emi_ratio <- EMI / (CPM + EMI)
+
+    # Cache log-growth terms for proteins
+    logC  <- log(protcmax  / ProtC[t])
+    logNC <- log(protncmax / ProtNC[t])
+
+    # Carcass lipids
+    LipCmax  <- (lip0 + lipc1  * (ProtC[t]  / protcmax))  * PoidsC
+    logLipC  <- log(LipCmax  / LipC[t])
+
+    # Non-carcass lipids
+    LipNCmax <- (lip0 + lipnc1 * (ProtNC[t] / protncmax)) * PoidsNC
+    logLipNC <- log(LipNCmax / LipNC[t])
+
+    # Rates of change
+    dPC  <- alphac  * ProtC[t]  * logC  * emi_ratio  - gammac  * ProtC[t]  * logC
+    dLC  <- beta    * LipC[t]   * logLipC  * emi_ratio  - delta   * LipC[t]   * logLipC
+    dPNC <- alphanc * ProtNC[t] * logNC * emi_ratio  - gammanc * ProtNC[t] * logNC
+    dLNC <- beta    * LipNC[t]  * logLipNC * emi_ratio  - delta   * LipNC[t]  * logLipNC
+
+    # Update state variables
+    if (t < duration) {
+      ProtC[t+1]  <- ProtC[t]  + dPC
+      LipC[t+1]   <- LipC[t]   + dLC
+      ProtNC[t+1] <- ProtNC[t] + dPNC
+      LipNC[t+1]  <- LipNC[t]  + dLNC
+    }
+  }
+
+  data.frame(
+    time   = seq_len(duration),
+    ProtC  = ProtC,
+    LipC   = LipC,
+    ProtNC = ProtNC,
+    LipNC  = LipNC,
+    PV     = PV
+  )
+}
+
 carcass.model <- function(protcmax, protncmax, alphac, alphanc, gammac, gammanc,
                           lip0, lipc1, lipnc1, beta, delta, k,
                           b0c, b1c, b0nc, b1nc, c0, c1, cem, duration)
-  {
-   # Initialise state vectors — pre-allocated to full duration
-   # Note: use rep(NA, duration) not rep(NA, 1, duration)
-   ProtC  <- rep(NA_real_, duration)
-   LipC   <- rep(NA_real_, duration)
-   ProtNC <- rep(NA_real_, duration)
-   LipNC  <- rep(NA_real_, duration)
-   PV     <- rep(NA_real_, duration)
-
-   # Initial conditions
-   ProtC[1]  <- 30
-   LipC[1]   <- 15
-   ProtNC[1] <- 15
-   LipNC[1]  <- 8
-
-   # Simulation loop
-   for (t in seq_len(duration)) {
-
-     # Body-weight sub-model
-     MDC    <- b0c  * ProtC[t] ^b1c
-     PoidsC <- LipC[t]  + MDC
-     MDNC   <- b0nc * ProtNC[t]^b1nc
-     PoidsNC <- LipNC[t] + MDNC
-
-     PVV    <- PoidsC + PoidsNC
-     PV[t]  <- c0 * PVV^c1
-
-     EMI    <- cem * (0.0157 * (PV[t]^0.9) + 3.3161)
-     CPM    <- k * PV[t]^0.75
-
-     # Cache the energy-availability ratio (used 4 times per step)
-     emi_ratio <- EMI / (CPM + EMI)
-
-     # Cache log-growth terms for carcass proteins (each used twice)
-     logC  <- log(protcmax  / ProtC[t])
-     logNC <- log(protncmax / ProtNC[t])
-
-     # Carcass lipids: compute max first, then cache log term
-     LipCmax  <- (lip0 + lipc1  * (ProtC[t]  / protcmax))  * PoidsC
-     logLipC  <- log(LipCmax  / LipC[t])
-
-     # Non-carcass lipids
-     LipNCmax <- (lip0 + lipnc1 * (ProtNC[t] / protncmax)) * PoidsNC
-     logLipNC <- log(LipNCmax / LipNC[t])
-
-     # Rates of change
-     dPC  <- alphac  * ProtC[t]  * logC  * emi_ratio  - gammac  * ProtC[t]  * logC
-     dLC  <- beta    * LipC[t]   * logLipC  * emi_ratio  - delta   * LipC[t]   * logLipC
-     dPNC <- alphanc * ProtNC[t] * logNC * emi_ratio  - gammanc * ProtNC[t] * logNC
-     dLNC <- beta    * LipNC[t]  * logLipNC * emi_ratio  - delta   * LipNC[t]  * logLipNC
-
-     # Update state variables (skip if at last step — no t+1 slot)
-     if (t < duration) {
-       ProtC[t+1]  <- ProtC[t]  + dPC
-       LipC[t+1]   <- LipC[t]   + dLC
-       ProtNC[t+1] <- ProtNC[t] + dPNC
-       LipNC[t+1]  <- LipNC[t]  + dLNC
-     }
-   }
-   # End simulation loop
-
-   data.frame(
-     time   = seq_len(duration),
-     ProtC  = ProtC,
-     LipC   = LipC,
-     ProtNC = ProtNC,
-     LipNC  = LipNC,
-     PV     = PV
-   )
+{
+  .carcass_engine(protcmax, protncmax, alphac, alphanc, gammac, gammanc,
+                  lip0, lipc1, lipnc1, beta, delta, b0c, b1c, b0nc, b1nc, c0, c1,
+                  duration,
+                  init_ProtC = 30, init_LipC = 15, init_ProtNC = 15, init_LipNC = 8,
+                  cem = cem, k = k)
 }
 # End of file
