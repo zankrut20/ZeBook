@@ -1,43 +1,13 @@
 ################################################################################
 # "Working with dynamic models for agriculture"
+################################################################################
+# "Working with dynamic models for agriculture"
 # R script for practical work
 # Daniel Wallach (INRA), David Makowski (INRA), James W. Jones (U.of Florida),
 # Francois Brun (ACTA)
 # version : 2010-08-09
 # Model described in the book, Appendix. Models used as illustrative examples: description and R code
 ################################ FUNCTIONS #####################################
-#' @title The basic Maize model.
-#' @description \strong{Model description.}
-#' This model is a dynamic model of crop growth for Maize cultivated in potential conditions.
-#' The crop growth is represented by three state variables, leaf area per unit ground area (leaf area index, LAI), total biomass (B) and cumulative thermal time since plant emergence (TT). It is based on key concepts included in most crop models, at least for the "potential production" part. In fact, this model does not take into account any effects of soil water, nutrients, pests, or diseases,... 
-#' @details The tree state variables are dynamic variables depending on days after emergence: TT(day), B(day), and LAI(day). The model has a time step dt of one day.\cr
-#' The model is defined by a few equations, with a total of seven parameters for the described process.
-#' \cr (1) \eqn{TT(day+1) = TT(day)+dTT(day)}{TT(day+1) = TT(day)+dTT(day)}
-#' \cr (2) \eqn{B(day+1) = B(day)+dB(day)}{B(day+1) = B(day)+dB(day)}
-#' \cr (3) \eqn{LAI(day+1) = LAI(day)+dLAI(day)}{LAI(day+1) = LAI(day)+dLAI(day)}
-#' \cr (4) \eqn{dTT(day) = \max(\frac{TMIN(day)+TMAX(day)}{2}-Tbase;0)}{dTT(day) = max((TMIN(day)+TMAX(day))/2-Tbase ; 0)}
-#' \cr (5) \eqn{dB(day) = RUE*(1-e^{-K*LAI(day)*I(day)}),\ if\ TT(day)\le TTM}{dB(day) = RUE*(1-e^{-K*LAI(day)*I(day)}), if TT(day)<= TTM} 
-#' \cr \eqn{dB(day) = 0,\ if\  TT(day)>TTM}{dB(day) = 0, if TT(day)>TTM}
-#' \cr (6) \eqn{dLAI(day) = alpha*dTT(day)*LAI(day)*\max(LAImax-LAI(day);0),\ if \ TT(day)\le TTL }{alpha*dTT(day)*LAI(day)*max(LAImax-LAI(day);0), if TT(day)<= TTL }
-#' \cr \eqn{dLAI(day) = 0,\ if\  TT(day)>TTL }{dLAI(day) = 0 if TT(day)>TTL}
-#' @param Tbase parameter the baseline temperature for growth (degreeCelsius)
-#' @param TTM parameter temperature sum for crop maturity (degreeC.day)
-#' @param TTL parameter temperature sum at the end of leaf area increase (degreeC.day)
-#' @param K parameter extinction coefficient (relation between leaf area index and intercepted radiation) (-)
-#' @param RUE parameter radiation use efficiency (?)
-#' @param alpha parameter the relative rate of leaf area index increase for small values of leaf area index (?)
-#' @param LAImax parameter maximum leaf area index (-)
-#' @param weather weather data.frame for one single year
-#' @param sdate sowing date
-#' @param ldate last date
-#' @return data.frame with daily TT, LAI,B
-#' @seealso \code{\link{maize.model2}}, \code{\link{maize.define.param}}, \code{\link{maize.simule}}, \code{\link{maize.multisy}},
-#' \code{\link{maize.simule240}},\code{\link{maize.simule_multisy240}}
-#' @export
-#' @examples 
-#' weather = maize.weather(working.year=2010, working.site=30,weather_all=weather_EuropeEU)
-#' maize.model(Tbase=7, RUE=1.85, K=0.7, alpha=0.00243, LAImax=7, TTM=1200, TTL=700,
-#'   weather, sdate=100, ldate=250)
 # ── Internal simulation engine ─────────────────────────────────────────────────
 #
 # All four exported maize model variants share the identical simulation loop;
@@ -335,21 +305,6 @@ maize.simule_multisy240 <- function(X, liste_sy, sdate, ldate, weather_all=NA, a
 }
 ################################################################################
 #' @title The Maize model with additional state variable CumInt
-#' @description Variant of the maize model
-#' @param Tbase parameter the baseline temperature for growth (degreeCelsius)
-#' @param TTM parameter temperature sum for crop maturity (degreeC.day)
-#' @param TTL parameter temperature sum at the end of leaf area increase (degreeC.day)
-#' @param K parameter extinction coefficient (relation between leaf area index and intercepted radiation) (-)
-#' @param RUE parameter radiation use efficiency (?)
-#' @param alpha parameter the relative rate of leaf area index increase for small values of leaf area index (?)
-#' @param LAImax parameter maximum leaf area index (-)
-#' @param  weather weather data.frame for one single year
-#' @param sdate sowing date
-#' @param ldate last date
-#' @return data.frame with daily TT, LAI,B
-#' @export
-################################################################################
-#' @title The Maize model with additional state variable CumInt
 #' @description Variant of the maize model that also tracks cumulative
 #'   intercepted radiation (CumInt). Internally delegates to the shared
 #'   `.maize_engine()` with `track_cumint = TRUE`.
@@ -393,21 +348,6 @@ maize.RUEtemp <- function(T, RUE_max,T0,T1,T2,T3)
 	}
 ###############################################################################
 #' @title The Maize model with temperature dependent RUE and CumInt
-#' @description Variant of the maize.model
-#' @param Tbase parameter the baseline temperature for growth (degreeCelsius)
-#' @param TTM parameter temperature sum for crop maturity (degreeC.day)
-#' @param TTL parameter temperature sum at the end of leaf area increase (degreeC.day)
-#' @param K parameter extinction coefficient (relation between leaf area index and intercepted radiation) (-)
-#' @param RUE_max parameter maximum radiation use efficiency (?)
-#' @param alpha parameter the relative rate of leaf area index increase for small values of leaf area index (?)
-#' @param LAImax parameter maximum leaf area index (-)
-#' @param weather weather data.frame for one single year
-#' @param sdate sowing date
-#' @param ldate last date
-#' @return data.frame with daily TT, LAI,B
-#' @export
-################################################################################
-#' @title The Maize model with temperature dependent RUE and CumInt
 #' @description Variant of the maize model where RUE is a function of
 #'   temperature (via \code{\link{maize.RUEtemp}}) and CumInt is tracked.
 #'   Internally delegates to the shared `.maize_engine()` with
@@ -436,21 +376,6 @@ maize_cir_rue.model <- function(Tbase, RUE_max, K, alpha, LAImax, TTM, TTL,
 
 
 ###############################################################################
-#' @title The Maize model with temperature dependent RUE, CumInt and ear growth
-#' @description Variant of the maize.model
-#' @param Tbase parameter the baseline temperature for growth (degreeCelsius)
-#' @param TTM parameter temperature sum for crop maturity (degreeC.day)
-#' @param TTL parameter temperature sum at the end of leaf area increase (degreeC.day)
-#' @param K parameter extinction coefficient (relation between leaf area index and intercepted radiation) (-)
-#' @param RUE_max parameter maximum radiation use efficiency (?)
-#' @param alpha parameter the relative rate of leaf area index increase for small values of leaf area index (?)
-#' @param LAImax parameter maximum leaf area index (-)
-#' @param  weather weather data.frame for one single year
-#' @param sdate sowing date
-#' @param ldate last date
-#' @return data.frame with daily TT, LAI,B
-#' @export
-################################################################################
 #' @title The Maize model with temperature dependent RUE, CumInt and ear growth
 #' @description Variant of the maize model that additionally tracks BE, the
 #'   biomass allocated to the ear after TTL.  Internally delegates to the
