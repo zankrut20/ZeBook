@@ -38,40 +38,146 @@
 #' weather = maize.weather(working.year=2010, working.site=30,weather_all=weather_EuropeEU)
 #' maize.model(Tbase=7, RUE=1.85, K=0.7, alpha=0.00243, LAImax=7, TTM=1200, TTL=700,
 #'   weather, sdate=100, ldate=250)
-maize.model<-function(Tbase,RUE,K,alpha,LAImax,TTM,TTL,weather,sdate,ldate)
-    {
-    # Initialize variables
-    # 3 states variables, as 3 vectors initialized to NA
-    # TT : temperature sum (degreeC.day)
-    TT<-rep(NA,ldate)
-    # B : Biomass (g/m2)
-    B<-rep(NA,ldate)
-    # LAI : Leaf Area Index (m2 leaf/m2 soil)
-    LAI<-rep(NA,ldate)
-    
-    # Initialize state variables when sowing on day "sdate"   
-    TT[sdate]<- 0
-    B[sdate]<- 1
-    LAI[sdate]<- 0.01
-    
-    # Simulation loop
-    for (day in sdate:(ldate-1))
-        {
-        # Calculate rates of change of state variables (dTT, dB, dLAI)
-        dTT <- max((weather$Tmin[day]+weather$Tmax[day])/2-Tbase, 0) 
-        if (TT[day]<=TTM) {dB <- RUE*(1-exp(-K*LAI[day]))*weather$I[day]}
-        else {dB <- 0}
-        if (TT[day]<=TTL) {dLAI <- alpha*dTT*LAI[day]*max(LAImax-LAI[day],0)}
-        else {dLAI <-0 }
-        
-        # Update state variables 
-        TT[day+1]<- TT[day] + dTT 
-        B[day+1]<- B[day] + dB
-        LAI[day+1]<- LAI[day] + dLAI   
-        }
-        # End simulation loop
-    return(data.frame(day=sdate:ldate,TT=TT[sdate:ldate],LAI=LAI[sdate:ldate],B=B[sdate:ldate]))    
+# ── Internal simulation engine ─────────────────────────────────────────────────
+#
+# All four exported maize model variants share the identical simulation loop;
+# they differ only in:
+#   (a) how RUE is computed (constant vs temperature-dependent via maize.RUEtemp)
+#   (b) whether CumInt (cumulative intercepted radiation) is tracked
+#   (c) whether BE (ear biomass) is tracked
+#
+# This engine centralises the loop once.  Exported functions are thin wrappers
+# that set feature flags and pick the columns they need from the result.
+#
+# @param Tbase,RUE_or_max,K,alpha,LAImax,TTM,TTL  model parameters
+# @param weather  data.frame with columns Tmin, Tmax, I
+# @param sdate,ldate  integer day-of-year indices
+# @param temp_rue    logical — use maize.RUEtemp() instead of constant RUE
+# @param track_cumint logical — accumulate CumInt state variable
+# @param track_ear   logical — accumulate BE (ear biomass) state variable
+# @return named list with vectors TT, LAI, B (and optionally CumInt, BE),
+#   each of length (ldate - sdate + 1) representing days sdate..ldate
+# @keywords internal
+.maize_engine <- function(Tbase, RUE_or_max, K, alpha, LAImax, TTM, TTL,
+                          weather, sdate, ldate,
+                          temp_rue    = FALSE,
+                          track_cumint = FALSE,
+                          track_ear   = FALSE)
+{
+  # Pre-allocate full-length state vectors (indexed 1..ldate)
+  TT  <- rep(NA_real_, ldate)
+  B   <- rep(NA_real_, ldate)
+  LAI <- rep(NA_real_, ldate)
+
+  # Optional state variables — only allocate when needed
+  if (track_cumint) CumInt <- rep(NA_real_, ldate)
+  if (track_ear)    BE     <- rep(NA_real_, ldate)
+
+  # Initial conditions at sowing date
+  TT[sdate]  <- 0.0
+  B[sdate]   <- 1.0
+  LAI[sdate] <- 0.01
+  if (track_cumint) CumInt[sdate] <- 0.0
+  if (track_ear)    BE[sdate]     <- 0.0
+
+  # Extract weather columns once to avoid repeated $ dispatch inside the loop
+  w_Tmin <- weather$Tmin
+  w_Tmax <- weather$Tmax
+  w_I    <- weather$I
+
+  # Simulation loop
+  for (day in sdate:(ldate - 1)) {
+    # Thermal time increment
+    dTT <- max((w_Tmin[day] + w_Tmax[day]) / 2 - Tbase, 0)
+
+    # Radiation-use efficiency: constant or temperature-dependent
+    if (temp_rue) {
+      tday <- (w_Tmin[day] + w_Tmax[day]) / 2
+      RUE  <- maize.RUEtemp(tday, RUE_or_max, 6.2, 16.5, 33, 44)
+    } else {
+      RUE  <- RUE_or_max
     }
+
+    # Absorbed PAR term (shared by dB and dCumInt)
+    fI <- 1 - exp(-K * LAI[day])
+
+    # Biomass increment: zero after maturity
+    dB <- if (TT[day] <= TTM) RUE * fI * w_I[day] else 0
+
+    # LAI increment: zero after TTL
+    dLAI <- if (TT[day] <= TTL)
+      alpha * dTT * LAI[day] * max(LAImax - LAI[day], 0)
+    else 0
+
+    # Update core state variables
+    TT[day  + 1] <- TT[day]  + dTT
+    B[day   + 1] <- B[day]   + dB
+    LAI[day + 1] <- LAI[day] + dLAI
+
+    # Optional state updates
+    if (track_cumint)
+      CumInt[day + 1] <- CumInt[day] + w_I[day] * fI
+
+    if (track_ear) {
+      dBE <- if (TT[day] > TTL) dB else 0
+      BE[day + 1] <- BE[day] + dBE
+    }
+  }
+  # End simulation loop
+
+  # Return only the simulation window sdate..ldate
+  idx <- sdate:ldate
+  out <- list(TT = TT[idx], LAI = LAI[idx], B = B[idx])
+  if (track_cumint) out$CumInt <- CumInt[idx]
+  if (track_ear)    out$BE     <- BE[idx]
+  out
+}
+
+################################################################################
+#' @title The basic Maize model.
+#' @description \strong{Model description.}
+#' This model is a dynamic model of crop growth for Maize cultivated in
+#' potential conditions. The crop growth is represented by three state
+#' variables, leaf area per unit ground area (leaf area index, LAI), total
+#' biomass (B) and cumulative thermal time since plant emergence (TT).
+#' @details The tree state variables are dynamic variables depending on days
+#' after emergence: TT(day), B(day), and LAI(day). The model has a time
+#' step dt of one day.
+#' \cr (1) \eqn{TT(day+1) = TT(day)+dTT(day)}
+#' \cr (2) \eqn{B(day+1) = B(day)+dB(day)}
+#' \cr (3) \eqn{LAI(day+1) = LAI(day)+dLAI(day)}
+#' \cr (4) \eqn{dTT(day) = \max(\frac{TMIN+TMAX}{2}-Tbase;0)}
+#' \cr (5) \eqn{dB(day) = RUE*(1-e^{-K*LAI})*I,\ if\ TT\le TTM;\  0\ otherwise}
+#' \cr (6) \eqn{dLAI(day) = alpha*dTT*LAI*\max(LAImax-LAI;0),\ if\ TT\le TTL;\ 0\ otherwise}
+#' @param Tbase baseline temperature for growth (degreeC)
+#' @param RUE radiation use efficiency (g.MJ-1)
+#' @param K extinction coefficient (-)
+#' @param alpha relative rate of LAI increase for small LAI ((degreeC.day)-1)
+#' @param LAImax maximum leaf area index (m2 leaf/m2 soil)
+#' @param TTM temperature sum for crop maturity (degreeC.day)
+#' @param TTL temperature sum at end of leaf area increase (degreeC.day)
+#' @param weather weather data.frame for one single year
+#' @param sdate sowing date
+#' @param ldate last date
+#' @return data.frame with daily TT, LAI, B
+#' @seealso \code{\link{maize.model2}}, \code{\link{maize.define.param}},
+#'   \code{\link{maize.simule}}, \code{\link{maize.multisy}},
+#'   \code{\link{maize.simule240}}, \code{\link{maize.simule_multisy240}}
+#' @export
+#' @examples
+#' weather = maize.weather(working.year=2010, working.site=30,
+#'   weather_all=weather_EuropeEU)
+#' maize.model(Tbase=7, RUE=1.85, K=0.7, alpha=0.00243, LAImax=7,
+#'   TTM=1200, TTL=700, weather, sdate=100, ldate=250)
+maize.model <- function(Tbase, RUE, K, alpha, LAImax, TTM, TTL,
+                        weather, sdate, ldate)
+{
+  e <- .maize_engine(Tbase, RUE, K, alpha, LAImax, TTM, TTL,
+                     weather, sdate, ldate,
+                     temp_rue = FALSE, track_cumint = FALSE, track_ear = FALSE)
+  data.frame(day = sdate:ldate, TT = e$TT, LAI = e$LAI, B = e$B)
+}
+
 ################################################################################
 #' @title The basic Maize model for use with maize.simule
 #' @description Wrapper pour maize.model
@@ -242,46 +348,33 @@ maize.simule_multisy240 <- function(X, liste_sy, sdate, ldate, weather_all=NA, a
 #' @param ldate last date
 #' @return data.frame with daily TT, LAI,B
 #' @export
-maize_cir.model<-function(Tbase,RUE,K,alpha,LAImax,TTM,TTL,weather,sdate,ldate)
-    {
-    # Initialize variables
-    # 3 states variables, as 3 vectors initialized to NA
-    # TT : temperature sum (degreeC.d)
-    TT<-rep(NA,ldate)
-    # B : Biomass (g/m2)
-    B<-rep(NA,ldate)
-    # LAI : Leaf Area Index (m2 leaf/m2 soil)
-    LAI<-rep(NA,ldate)
-    # CumInt LAI : Cumulative intercepted radiation
-	CumInt<-rep(NA,ldate) 
+################################################################################
+#' @title The Maize model with additional state variable CumInt
+#' @description Variant of the maize model that also tracks cumulative
+#'   intercepted radiation (CumInt). Internally delegates to the shared
+#'   `.maize_engine()` with `track_cumint = TRUE`.
+#' @param Tbase baseline temperature for growth (degreeC)
+#' @param RUE radiation use efficiency (g.MJ-1)
+#' @param K extinction coefficient (-)
+#' @param alpha relative rate of LAI increase for small LAI ((degreeC.day)-1)
+#' @param LAImax maximum leaf area index (m2 leaf/m2 soil)
+#' @param TTM temperature sum for crop maturity (degreeC.day)
+#' @param TTL temperature sum at end of leaf area increase (degreeC.day)
+#' @param weather weather data.frame for one single year
+#' @param sdate sowing date
+#' @param ldate last date
+#' @return data.frame with daily TT, LAI, B, CumInt
+#' @export
+maize_cir.model <- function(Tbase, RUE, K, alpha, LAImax, TTM, TTL,
+                            weather, sdate, ldate)
+{
+  e <- .maize_engine(Tbase, RUE, K, alpha, LAImax, TTM, TTL,
+                     weather, sdate, ldate,
+                     temp_rue = FALSE, track_cumint = TRUE, track_ear = FALSE)
+  data.frame(day = sdate:ldate, TT = e$TT, LAI = e$LAI,
+             B = e$B, CumInt = e$CumInt)
+}
 
-
-    # Initialize state variables when sowing on day "sdate"   
-    TT[sdate]<- 0
-    B[sdate]<- 1
-    LAI[sdate]<- 0.01
-    CumInt[sdate] = 0.0
-
-    # Simulation loop
-    for (day in sdate:(ldate-1))
-        {
-        # Calculate rates of change of state variables (dTT, dB, dLAI)
-        dTT <- max((weather$Tmin[day]+weather$Tmax[day])/2-Tbase, 0) 
-        if (TT[day]<=TTM) {dB <- RUE*(1-exp(-K*LAI[day]))*weather$I[day]}
-        else {dB <- 0}
-        if (TT[day]<=TTL) {dLAI <- alpha*dTT*LAI[day]*max(LAImax-LAI[day],0)}
-        else {dLAI <-0 }
-		
-        
-        # Update state variables 
-        TT[day+1]<- TT[day] + dTT 
-        B[day+1]<- B[day] + dB
-        LAI[day+1]<- LAI[day] + dLAI   
-		CumInt[day+1] = CumInt[day] + weather$I[day]*(1 - exp(- K * LAI[day]))
-        }
-        # End simulation loop
-    return(data.frame(day=sdate:ldate,TT=TT[sdate:ldate],LAI=LAI[sdate:ldate],B=B[sdate:ldate],CumInt=CumInt[sdate:ldate]))    
-    }
 
 ###############################################################################
 #' @title Calculate effect of temperature on RUE for Maize
@@ -313,43 +406,34 @@ maize.RUEtemp <- function(T, RUE_max,T0,T1,T2,T3)
 #' @param ldate last date
 #' @return data.frame with daily TT, LAI,B
 #' @export
-maize_cir_rue.model<-function(Tbase,RUE_max,K,alpha,LAImax,TTM,TTL,weather,sdate,ldate)
-    {
-    # Initialize variables
-    # 3 states variables, as 3 vectors initialized to NA
-    # TT : temperature sum (degreeC.d)
-    TT<-rep(NA,ldate)
-    # B : Biomass (g/m2)
-    B<-rep(NA,ldate)
-    # LAI : Leaf Area Index (m2 leaf/m2 soil)
-    LAI<-rep(NA,ldate)
-    # CumInt LAI : Cumulative intercepted radiation
-	CumInt<-rep(NA,ldate) 
-    # Initialize state variables when sowing on day "sdate"   
-    TT[sdate]<- 0
-    B[sdate]<- 1
-    LAI[sdate]<- 0.01
-    CumInt[sdate] = 0.0
-    # Simulation loop
-    for (day in sdate:(ldate-1))
-        {
-        # Calculate rates of change of state variables (dTT, dB, dLAI)
-        dTT <- max((weather$Tmin[day]+weather$Tmax[day])/2-Tbase, 0) 
-		tday = (weather$Tmin[day]+weather$Tmax[day])/2
-        if (TT[day]<=TTM) {dB <- maize.RUEtemp(tday,RUE_max,6.2,16.5,33,44)*(1-exp(-K*LAI[day]))*weather$I[day]}
-        else {dB <- 0}
-        if (TT[day]<=TTL) {dLAI <- alpha*dTT*LAI[day]*max(LAImax-LAI[day],0)}
-        else {dLAI <-0 }
-        
-        # Update state variables 
-        TT[day+1]<- TT[day] + dTT 
-        B[day+1]<- B[day] + dB
-        LAI[day+1]<- LAI[day] + dLAI   
-		CumInt[day+1] = CumInt[day] + weather$I[day]*(1 - exp(- K * LAI[day]))
-        }
-        # End simulation loop
-    return(data.frame(day=sdate:ldate,TT=TT[sdate:ldate],LAI=LAI[sdate:ldate],B=B[sdate:ldate],CumInt=CumInt[sdate:ldate]))    
-    }
+################################################################################
+#' @title The Maize model with temperature dependent RUE and CumInt
+#' @description Variant of the maize model where RUE is a function of
+#'   temperature (via \code{\link{maize.RUEtemp}}) and CumInt is tracked.
+#'   Internally delegates to the shared `.maize_engine()` with
+#'   `temp_rue = TRUE, track_cumint = TRUE`.
+#' @param Tbase baseline temperature for growth (degreeC)
+#' @param RUE_max maximum radiation use efficiency (g.MJ-1)
+#' @param K extinction coefficient (-)
+#' @param alpha relative rate of LAI increase for small LAI ((degreeC.day)-1)
+#' @param LAImax maximum leaf area index (m2 leaf/m2 soil)
+#' @param TTM temperature sum for crop maturity (degreeC.day)
+#' @param TTL temperature sum at end of leaf area increase (degreeC.day)
+#' @param weather weather data.frame for one single year
+#' @param sdate sowing date
+#' @param ldate last date
+#' @return data.frame with daily TT, LAI, B, CumInt
+#' @export
+maize_cir_rue.model <- function(Tbase, RUE_max, K, alpha, LAImax, TTM, TTL,
+                                weather, sdate, ldate)
+{
+  e <- .maize_engine(Tbase, RUE_max, K, alpha, LAImax, TTM, TTL,
+                     weather, sdate, ldate,
+                     temp_rue = TRUE, track_cumint = TRUE, track_ear = FALSE)
+  data.frame(day = sdate:ldate, TT = e$TT, LAI = e$LAI,
+             B = e$B, CumInt = e$CumInt)
+}
+
 
 ###############################################################################
 #' @title The Maize model with temperature dependent RUE, CumInt and ear growth
@@ -366,54 +450,34 @@ maize_cir_rue.model<-function(Tbase,RUE_max,K,alpha,LAImax,TTM,TTL,weather,sdate
 #' @param ldate last date
 #' @return data.frame with daily TT, LAI,B
 #' @export
-maize_cir_rue_ear.model<-function(Tbase,RUE_max,K,alpha,LAImax,TTM,TTL,weather,sdate,ldate)
-    {
-    # Initialize variables
-    # 3 states variables, as 3 vectors initialized to NA
-    # TT : temperature sum (degreeC.d)
-    TT<-rep(NA,ldate)
-    # B : Biomass (g/m2)
-    B<-rep(NA,ldate)
-    # LAI : Leaf Area Index (m2 leaf/m2 soil)
-    LAI<-rep(NA,ldate)
-    # CumInt  Cumulative intercepted radiation
-	CumInt<-rep(NA,ldate) 
-	 # BE:  Biomass of ear
-	BE<-rep(NA,ldate) 
+################################################################################
+#' @title The Maize model with temperature dependent RUE, CumInt and ear growth
+#' @description Variant of the maize model that additionally tracks BE, the
+#'   biomass allocated to the ear after TTL.  Internally delegates to the
+#'   shared `.maize_engine()` with
+#'   `temp_rue = TRUE, track_cumint = TRUE, track_ear = TRUE`.
+#' @param Tbase baseline temperature for growth (degreeC)
+#' @param RUE_max maximum radiation use efficiency (g.MJ-1)
+#' @param K extinction coefficient (-)
+#' @param alpha relative rate of LAI increase for small LAI ((degreeC.day)-1)
+#' @param LAImax maximum leaf area index (m2 leaf/m2 soil)
+#' @param TTM temperature sum for crop maturity (degreeC.day)
+#' @param TTL temperature sum at end of leaf area increase (degreeC.day)
+#' @param weather weather data.frame for one single year
+#' @param sdate sowing date
+#' @param ldate last date
+#' @return data.frame with daily TT, LAI, B, CumInt, BE
+#' @export
+maize_cir_rue_ear.model <- function(Tbase, RUE_max, K, alpha, LAImax, TTM, TTL,
+                                    weather, sdate, ldate)
+{
+  e <- .maize_engine(Tbase, RUE_max, K, alpha, LAImax, TTM, TTL,
+                     weather, sdate, ldate,
+                     temp_rue = TRUE, track_cumint = TRUE, track_ear = TRUE)
+  data.frame(day = sdate:ldate, TT = e$TT, LAI = e$LAI,
+             B = e$B, CumInt = e$CumInt, BE = e$BE)
+}
 
-    # Initialize state variables when sowing on day "sdate"
-    TT[sdate]<- 0
-    B[sdate]<- 1
-    LAI[sdate]<- 0.01
-    CumInt[sdate] = 0.0
-	BE[sdate] = 0.0
-
-    # Simulation loop
-    for (day in sdate:(ldate-1))
-        {
-        # Calculate rates of change of state variables (dTT, dB, dLAI)
-        dTT <- max((weather$Tmin[day]+weather$Tmax[day])/2-Tbase, 0) 
-		tday = (weather$Tmin[day]+weather$Tmax[day])/2
-        if (TT[day]<=TTM) {dB <- maize.RUEtemp(tday,RUE_max,6.2,16.5,33,44)*(1-exp(-K*LAI[day]))*weather$I[day]}
-        else {dB <- 0}
-
-        if (TT[day]<=TTL) {dLAI <- alpha*dTT*LAI[day]*max(LAImax-LAI[day],0)}
-        else {dLAI <-0 }
-
-	    if (TT[day]> TTL) {dBE <- dB}
-		else dBE <-0			
-		
-        
-        # Update state variables 
-        TT[day+1]<- TT[day] + dTT 
-        B[day+1]<- B[day] + dB
-        LAI[day+1]<- LAI[day] + dLAI   
-		CumInt[day+1] = CumInt[day] + weather$I[day]*(1 - exp(- K * LAI[day]))
-		BE[day+1] <- BE[day] + dBE
-        }
-        # End simulation loop
-    return(data.frame(day=sdate:ldate,TT=TT[sdate:ldate],LAI=LAI[sdate:ldate],B=B[sdate:ldate],CumInt=CumInt[sdate:ldate],BE=BE[sdate:ldate]))    
-    }
 
 ###############################################################################
 #' @title Read weather data for the Maize model
