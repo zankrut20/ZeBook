@@ -176,7 +176,7 @@ test_that("AICf: ignores NA in Yobs by counting only non-NA pairs", {
 
 test_that("evaluation.criteria: emits a deprecation warning", {
   expect_warning(evaluation.criteria(Ypred = OBS, Yobs = PRED),
-                 "depreciated")
+                 "deprecated")
 })
 
 test_that("evaluation.criteria: returns a data.frame", {
