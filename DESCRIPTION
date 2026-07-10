@@ -13,7 +13,7 @@ Maintainer: Francois Brun <francois.brun@acta.asso.fr>
 Description: R package accompanying the book Working with dynamic models for agriculture and environment, by Daniel Wallach (INRAE), David Makowski (INRAE), James W. Jones (U.of Florida), Francois Brun (ACTA), 2019.
 License: LGPL-3
 LazyData: true
-Depends: R (>= 3.0.0)
+Depends: R (>= 4.0.0)
 Imports: triangle, deSolve
 Suggests:
         coda,dlm,maps,mgcv,mnormt,mvtnorm,randomForest,rpart,rpart.plot,sensitivity,sp,spatial,tseries,
@@ -23,10 +23,7 @@ Encoding: UTF-8
 Config/roxygen2/version: 8.0.0
 Config/testthat/edition: 3
 NeedsCompilation: no
-Packaged: 2026-06-22 17:03:05 UTC; Francois.Brun
 Author: Francois Brun [aut, cre] (ACTA),
   David Makowski [aut] (INRAE),
   Daniel Wallach [aut] (INRAE),
   James W. Jones [aut] (U.of Florida)
-Repository: CRAN
-Date/Publication: 2026-06-22 17:40:02 UTC

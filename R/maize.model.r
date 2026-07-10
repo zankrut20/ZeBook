@@ -1,13 +1,3 @@
-################################################################################
-# "Working with dynamic models for agriculture"
-################################################################################
-# "Working with dynamic models for agriculture"
-# R script for practical work
-# Daniel Wallach (INRA), David Makowski (INRA), James W. Jones (U.of Florida),
-# Francois Brun (ACTA)
-# version : 2010-08-09
-# Model described in the book, Appendix. Models used as illustrative examples: description and R code
-################################ FUNCTIONS #####################################
 # ── Internal simulation engine ─────────────────────────────────────────────────
 #
 # All four exported maize model variants share the identical simulation loop;

@@ -1,12 +1,4 @@
 ################################################################################
-# "Working with dynamic models for agriculture"
-# R script for practical work
-# Daniel Wallach (INRA), David Makowski (INRA), James W. Jones (U.of Florida),
-# Francois Brun (ACTA), Sylvain Toulet (INRA, internship 2012)
-# version : 2012-04-23
-# Model described in the book, Appendix. Models used as illustrative examples: description and R code
-################################ FUNCTIONS #####################################
-################################################################################
 #' @title WaterBalance model - calculate change in soil water for one day
 #' @description WaterBalance model - calculate change in soil water for one day
 #' @param WAT0 : Water at the beginning of the day (mm).

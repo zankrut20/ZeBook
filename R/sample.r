@@ -1,11 +1,3 @@
-################################################################################
-# "Working with dynamic models for agriculture"
-# R script for pratical work
-# Daniel Wallach (INRA), David Makowski (INRA), James W. Jones (U.of Florida),
-# Francois Brun (ACTA)
-# version : 2010-08-09
-# Model described in the book, Appendix. Models used as illustrative examples: description and R code
-################################ FUNCTIONS #####################################
 #' @title Generate a random plan as a data frame. Columns are parameters. Values have uniform distribution
 #' @description according to minimal and maximal values defined in a model.factors matrix 
 #' @param model.factors : matrix defining minimal (binf) and maximal values (bsup) for a set of p parameters

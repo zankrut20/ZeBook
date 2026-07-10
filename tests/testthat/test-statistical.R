@@ -172,38 +172,4 @@ test_that("AICf: ignores NA in Yobs by counting only non-NA pairs", {
   expect_length(res_na, 2)
 })
 
-# ── evaluation.criteria (deprecated wrapper) ────────────────────────────────
 
-test_that("evaluation.criteria: emits a deprecation warning", {
-  expect_warning(evaluation.criteria(Ypred = OBS, Yobs = PRED),
-                 "deprecated")
-})
-
-test_that("evaluation.criteria: returns a data.frame", {
-  suppressWarnings({
-    res <- evaluation.criteria(Ypred = OBS, Yobs = PRED)
-  })
-  expect_s3_class(res, "data.frame")
-})
-
-test_that("evaluation.criteria: argument ORDER is (Ypred, Yobs) — opposite to goodness.of.fit", {
-  # evaluation.criteria(Ypred, Yobs) has bias = mean(Ypred) - mean(Yobs)
-  # goodness.of.fit(Yobs, Ypred) has bias = mean(Yobs) - mean(Ypred)
-  # For pred=OBS+1: evaluation.criteria bias = +1, goodness.of.fit bias = -1
-  suppressWarnings({
-    res_ec  <- evaluation.criteria(Ypred = PRED_BIASED, Yobs = OBS)
-    res_gof <- goodness.of.fit(Yobs = OBS, Ypred = PRED_BIASED)
-  })
-  # Signs should be opposite
-  expect_equal(res_ec$bias, 1,  tolerance = 1e-10)   # Ypred - Yobs = +1
-  expect_equal(res_gof$bias, -1, tolerance = 1e-10)  # Yobs - Ypred = -1
-})
-
-test_that("evaluation.criteria: EF matches goodness.of.fit EF for same data", {
-  suppressWarnings({
-    res_ec  <- evaluation.criteria(Ypred = PRED_BIASED, Yobs = OBS)
-    res_gof <- goodness.of.fit(Yobs = OBS, Ypred = PRED_BIASED)
-  })
-  # EF is symmetric in the sense that same pairs → same value
-  expect_equal(res_ec$EF, res_gof$EF, tolerance = 1e-8)
-})

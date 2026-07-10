@@ -1,10 +1,3 @@
-################################################################################
-# Working with dynamic models for agriculture - R script for pratical work
-# Daniel Wallach (INRA), David Makowski (INRA), James W. Jones (U.of Florida),
-# Francois Brun (ACTA)
-# version : 2013-06-17
-# Model described in the book, Appendix. Models used as illustrative examples: description and R code
-################################ FUNCTIONS #####################################
 #' @title The Cotton model (dynamic for numbers of Cotton fruiting points).
 #' @description \strong{Model description.} Dynamic model for numbers of Cotton fruiting points based on physiological time.
 #' @param TESQ : time (in physiological days) at which square formation ends

@@ -1,13 +1,5 @@
 ################################################################################
 ################################################################################
-################################################################################
-# Working with dynamic models for agriculture
-# R script for practical work
-# Daniel Wallach (INRA), David Makowski (INRA), James W. Jones (U.of Florida),
-# Francois Brun (ACTA)
-# version : 2013-06-09
-# Model described in the book, Appendix. Models used as illustrative examples: description and R code
-################################ FUNCTIONS #####################################
 #' @title The Weed model - calculate change for one year
 #' @description The Weed model - calculate change for one year
 #' @param d : weed density at seed emergence (plants/m2) - value for year

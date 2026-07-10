@@ -1,11 +1,3 @@
-################################################################################
-# "Working with dynamic models for agriculture"
-# R script for pratical work
-# Daniel Wallach (INRA), David Makowski (INRA), James W. Jones (U.of Florida),
-# Francois Brun (ACTA)
-# version : 2012-05-11
-# Model described in the book, Appendix. Models used as illustrative examples: description and R code
-################################ FUNCTIONS #####################################
 #' @title The Epirice model (Disease model for rice)
 #' @description \strong{Model description.} Adapted from Savary et al.(2012)
 #' @param param a vector of parameters

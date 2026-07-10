@@ -1,21 +1,9 @@
 #' @title Working with Dynamic Models for Agriculture and Environment
 #' @description
-#' \tabular{ll}{
-#' Package: \tab ZeBook\cr
-#' Type: \tab Package\cr
-#' Version: \tab 1.2\cr
-#' Date: \tab 2026-06-22\cr
-#' License: \tab LGPL-3 \cr
-#' LazyLoad: \tab true\cr
-#' LazyData: \tab true\cr
-#' Depends: \tab R(>= 3.0.0)\cr
-#' Imports: \tab triangle, deSolve\cr
-#' Suggests: \tab coda,dlm,maps,mgcv,mnormt,mvtnorm,randomForest,rpart,rpart.plot,sensitivity,sp,spatial,tseries\cr
-#' Encoding: \tab UTF-8\cr
-#' }
 #' \strong{ZeBook}
 #' Working with Dynamic Models for Agriculture and Environment
 #' (Working with Dynamic Crop Models)
+
 #'
 #' Linked to book \strong{Working with Dynamic Crop Models} (Elsevier), Third edition, 27 septembre 2018 by Wallach, Makowski, Jones and Brun. \url{https://www.modelia.org/moodle/course/view.php?id=61}
 #'
@@ -31,11 +19,11 @@
 #'
 #' Sylvain Toulet, Master2 internship (INRAE, \url{https://www.modelia.org/moodle/mod/resource/view.php?id=965}), january-jully 2012.
 #'                                     
-#' @name ZeBook-package
 #' @aliases ZeBook
-#' @docType package
 #' @author  Francois Brun (ACTA)  \email{francois.brun@@acta.asso.fr}, David Makowski (INRAE), Daniel Wallach (INRAE), James W. Jones (U.of Florida),
 #' @references Working with Dynamic Crop Models (Elsevier), Third edition. 2019
 #' \url{https://www.modelia.org}
 #' @keywords models agricultural agronomy crop environment methods tools evaluation uncertainty sensitivity parameter estimation bayesian assimilation
-#' 
+#' @importFrom graphics hist plot plot.default lines legend par abline barplot text mtext axis
+#' @importFrom stats approx cor cov na.omit runif sd var
+"_PACKAGE"

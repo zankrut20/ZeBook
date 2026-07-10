@@ -1,11 +1,3 @@
-################################################################################
-# "Working with dynamic models for agriculture"
-# R script for practical work
-# Daniel Wallach (INRA), David Makowski (INRA), James W. Jones (U.of Florida),
-# Francois Brun (ACTA)
-# version : 2018-03-04
-# Model described in the book, Appendix. Models used as illustrative examples: description and R code
-################################ FUNCTIONS #####################################
 #' @title The Carcass (growth of beef cattle) model with energy as input
 #' @description \strong{Model description.}
 #' This model is proposed by Hoch et. al (2004) to represent the growth of cattle and the relative body composition of diferent types of animals depending on nuritionnal conditions.

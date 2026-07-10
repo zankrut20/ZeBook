@@ -1,9 +1,3 @@
-################################################################################
-# "Working with dynamic models for agriculture"
-# Daniel Wallach (INRA), David Makowski (INRA), James W. Jones (U.of Florida),
-# Francois Brun (ACTA)
-# version : 2013-03-17
-################################ FUNCTIONS #####################################
 #' @title Calcule multiple goodness-of-fit criteria
 #' @description Calcule multiple goodness-of-fit criteria
 #' @param Ypred prediction values from the model

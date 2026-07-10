@@ -1,11 +1,3 @@
-################################################################################
-# "Working with dynamic models for agriculture"
-# R script for practical work
-# Daniel Wallach (INRA), David Makowski (INRA), James W. Jones (U.of Florida),
-# Francois Brun (ACTA)
-# version : 2010-08-09
-# Model described in the book, Appendix. Models used as illustrative examples: description and R code
-################################ FUNCTIONS #####################################
 #' @title The Magarey model
 #' @description Generic model of infection for foliar diseases caused by fungi (from Magarey et al.,2005).
 #' @param T : input variable. Either a scalar or a vector (for a weather series).

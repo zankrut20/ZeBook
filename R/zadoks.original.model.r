@@ -1,12 +1,3 @@
-################################################################################
-# "Working with dynamic models for agriculture"
-# R script for practical work
-# Daniel Wallach (INRA), David Makowski (INRA), James W. Jones (U.of Florida),
-# Francois Brun (ACTA)
-# version : 2018-03-04
-# Model described in the book, Appendix. Models used as illustrative examples: description and R code
-# model for Course SMACH - January 2014
-################################ FUNCTIONS #####################################
 #' @title Classical SEIR model for plant diseases from Zadoks (1971)
 #' @description \strong{Model description.}
 #' This model is a classical SEIR model for plant disease. It was written from it description included in the original publication of Zadoks (1971)
@@ -124,7 +115,7 @@ zakoks.original.model = function (nlpd=4*10,nipd=1*10,dmfr=16,SITE0 = 5*10^9,wea
 graph_epid_s=function(out,typel="s",all=TRUE, param=TRUE){
 # a tip to show value=0 on the log plot
 sim=out$sim
-plot(sim$day,sim$XSEV, type=typel,lty=1, lwd=3, xlab="Time after first infection (day)", ylim=c(0,10^30),ylab="X (nb of infectious sites)")
+plot(sim$day,sim$XSEV, type=typel,lty=1, lwd=3, xlab="Time after first infection (day)", ylim=c(0,1e15),ylab="X (nb of infectious sites)")
 if(all){
   lines(sim$day,sim$XLAT, type=typel,lty=1, lwd=2, col="orange")
   lines(sim$day,sim$XINF, type=typel,lty=1,lwd=2, col="red")

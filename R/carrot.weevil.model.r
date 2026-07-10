@@ -1,11 +1,3 @@
-################################################################################
-# "Working with dynamic models for agriculture"
-# R script for pratical work
-# Daniel Wallach (INRA), David Makowski (INRA), James W. Jones (U.of Florida),
-# Francois Brun (ACTA)
-# version : 2012-05-11
-# Model described in the book, Appendix. Models used as illustrative examples: description and R code
-################################ FUNCTIONS #####################################
 #' @title Carrot weevil development model
 #' @description \strong{Model description.} Simple model of developpement of carrot weevil.
 #' @param tbase : base temperature
